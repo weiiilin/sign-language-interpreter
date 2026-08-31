@@ -8,6 +8,9 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     groqApiKey: process.env.GROQ_API_KEY || '',
+    public: {
+      groqApiKey: process.env.NUXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY || ''
+    }
   },
   routeRules: {
     '/SignRecognition': { ssr: false },

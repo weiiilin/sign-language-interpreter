@@ -126,6 +126,7 @@ import { useSignStore } from '@/stores/signStore'
 import AppHeader from '@/components/header.vue'
 import * as Comlink from 'comlink'
 import type { AIWorkerType } from '@/workers/inference.worker'
+import { translateSignWords } from '@/utils/translator'
 
 const signStore = useSignStore()
 
@@ -343,19 +344,16 @@ const translateSentence = async () => {
     systemStatus.value = 'AI 潤色中...'
 
     try {
-        const res = await $fetch<{ success: boolean; text: string; error?: string }>('/api/translate', {
-            method: 'POST',
-            body: { words: recognizedWords.value }
-        })
+        const res = await translateSignWords(recognizedWords.value)
 
         if (res && res.text) {
             translatedSentence.value = res.text
-            systemStatus.value = res.error ? 'API 繁忙，已合併單字' : '翻譯完成！'
+            systemStatus.value = res.error ? '已顯示單字' : `翻譯完成！(${res.provider || 'AI'})`
         }
     } catch (e) {
         console.error('點擊翻譯失敗:', e)
         translatedSentence.value = recognizedWords.value.join(' ')
-        systemStatus.value = '請求失敗，顯示原始單字'
+        systemStatus.value = '顯示原始單字'
     } finally {
         isTranslating.value = false
 

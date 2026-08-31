@@ -40,6 +40,7 @@ jobs:
         env:
           NUXT_APP_BASE_URL: /sign-language-interpreter/
           NODE_ENV: production
+          NUXT_PUBLIC_GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
