@@ -3,6 +3,7 @@
     <NuxtLink to="/" class="item">字典</NuxtLink>
     <NuxtLink to="/upload" class="item">上傳</NuxtLink>
     <NuxtLink to="/record-ai" class="item">即時</NuxtLink>
+    <NuxtLink to="/SignRecognition" class="item">手語溝通</NuxtLink>
   </nav>
 </template>
 

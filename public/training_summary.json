@@ -8,8 +8,8 @@
   "train_samples": 461,
   "val_samples": 115,
   "test_samples": 144,
-  "test_loss": 0.039873480796813965,
-  "test_accuracy": 1.0,
+  "test_loss": 0.06404100358486176,
+  "test_accuracy": 0.9861111111111112,
   "classes": [
     "complete",
     "eat",

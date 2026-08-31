@@ -106,7 +106,12 @@ const initSystem = async () => {
       workerProxy = Comlink.wrap<AIWorkerType>(workerInstance)
     }
 
-    const success = await workerProxy!.loadModel('/model.onnx')
+    const runtimeConfig = useRuntimeConfig()
+    const baseUrl = runtimeConfig.app.baseURL || '/'
+    const modelUrl = `${baseUrl.replace(/\/$/, '')}/model.onnx`
+    const labelsUrl = `${baseUrl.replace(/\/$/, '')}/labels.json`
+
+    const success = await workerProxy!.loadModel(modelUrl, labelsUrl)
     if (!success) throw new Error('模型載入失敗')
     signStore.setModelLoaded(true)
 

@@ -17,7 +17,7 @@
       <img
         v-for="img in detail?.ＨandshapeImage"
         :key="img"
-        :src="img"
+        :src="getAssetUrl(img)"
         class="image"
       />
         </div>
@@ -28,7 +28,7 @@
       <img
         v-for="img in detail?.positionImage"
         :key="img"
-        :src="img"
+        :src="getAssetUrl(img)"
         class="image"
       />
         </div>
@@ -38,7 +38,7 @@
       </p>
       <video
         v-if="detail?.video"
-        :src="detail.video"
+        :src="getAssetUrl(detail.video)"
         controls
         class="video"
       />
@@ -60,6 +60,15 @@ const props = defineProps({
 const detail = computed(() => {
   return signDictionary[props.word] || null
 })
+
+const runtimeConfig = useRuntimeConfig()
+const getAssetUrl = (url) => {
+  if (!url) return ''
+  if (typeof url !== 'string') return url
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) return url
+  const base = runtimeConfig.app.baseURL || '/'
+  return `${base.replace(/\/$/, '')}/${url.replace(/^\//, '')}`
+}
 
 </script>
 

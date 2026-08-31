@@ -9,9 +9,10 @@ let session: ort.InferenceSession | null = null
 let labels: string[] = [];
 const LABELS_URL = '/labels.json';
 
-async function loadLabels(): Promise<void> {
+async function loadLabels(customLabelsUrl?: string): Promise<void> {
   try {
-    const res = await fetch(LABELS_URL);
+    const targetUrl = customLabelsUrl || LABELS_URL;
+    const res = await fetch(targetUrl);
     if (!res.ok) throw new Error(`labels fetch failed: ${res.status}`);
     const data = await res.json();
     const list = Array.isArray(data?.display_names)
@@ -36,7 +37,7 @@ const SEQ_LENGTH = 30;   // 收集 30 幀
 const FEATURE_DIM = 126; // 雙手特徵 (21點 * 3座標 * 2手)
 
 const AIWorker = {
-  async loadModel(modelUrl: string) {
+  async loadModel(modelUrl: string, labelsUrl?: string) {
     try {
       console.log("[Worker] 開始載入模型:", modelUrl);
       if (session) return true;
@@ -53,7 +54,8 @@ const AIWorker = {
       });
 
       console.log('[Worker] 模型載入成功');
-      await loadLabels();
+      const targetLabelsUrl = labelsUrl || (modelUrl.includes('/') ? modelUrl.substring(0, modelUrl.lastIndexOf('/') + 1) + 'labels.json' : LABELS_URL);
+      await loadLabels(targetLabelsUrl);
       return true;
     } catch (e) {
       console.error('[Worker] 初始化失敗', e);
