@@ -15,6 +15,15 @@
       </div>
 
       <div class="setting-row">
+        <p>每頁顯示詞彙：{{ dictionaryPageSize }} 個</p>
+        <select v-model.number="dictionaryPageSize">
+          <option v-for="option in pageSizeOptions" :key="option" :value="option">
+            {{ option }}
+          </option>
+        </select>
+      </div>
+
+      <div class="setting-row">
         <p>Groq API 金鑰：</p>
         <input
           v-model="groqApiKey"
@@ -41,10 +50,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useSignStore } from '@/stores/signStore'
 
+const signStore = useSignStore()
 const fontSize = ref(16)
 const groqApiKey = ref('')
+const pageSizeOptions = [5, 10, 20, 50]
+
+const dictionaryPageSize = computed({
+  get() {
+    return signStore.dictionaryPageSize
+  },
+  set(size) {
+    signStore.setDictionaryPageSize(size)
+  }
+})
 
 onMounted(() => {
   const savedSize = localStorage.getItem('fontSize')
@@ -60,6 +81,8 @@ onMounted(() => {
   if (savedKey) {
     groqApiKey.value = savedKey
   }
+
+  signStore.loadDictionaryPageSize()
 })
 
 watch(fontSize, (newSize) => {
@@ -120,6 +143,14 @@ watch(groqApiKey, (newKey) => {
 
 .setting-row input {
   width: 100%;
+}
+
+.setting-row select {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: white;
 }
 
 button {

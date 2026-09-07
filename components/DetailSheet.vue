@@ -55,10 +55,14 @@ const props = defineProps({
   word: {
     type: String,
     default: ''
+  },
+  dictionaryKey: {
+    type: String,
+    default: ''
   }
 })
 const detail = computed(() => {
-  return signDictionary[props.word] || null
+  return signDictionary[props.dictionaryKey] || signDictionary[props.word] || null
 })
 
 const runtimeConfig = useRuntimeConfig()

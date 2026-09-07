@@ -4,7 +4,8 @@
     <BottomNav />
     <SettingModal v-if="signStore.showSetting" @close="signStore.closeSetting()" />
     <DetailSheet v-if="signStore.showDetail" @close="signStore.closeDetail()" :word="signStore.detailData.word"
-      :breakdown="signStore.detailData.breakdown" :detail="signStore.detailData.detail" />
+      :dictionary-key="signStore.detailData.dictionaryKey" :breakdown="signStore.detailData.breakdown"
+      :detail="signStore.detailData.detail" />
   </div>
 </template>
 
