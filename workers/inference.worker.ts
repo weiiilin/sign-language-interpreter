@@ -1,11 +1,11 @@
 import * as Comlink from 'comlink'
 import * as ort from 'onnxruntime-web';
 
-ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
+// 設定精確版本之 ONNX Runtime Web WASM 路徑
+ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.3/dist/';
 
 let session: ort.InferenceSession | null = null
 
-// ['me', 'you', 'eat', 'yon', 'complete', 'notyet']
 let labels: string[] = [];
 const LABELS_URL = '/labels.json';
 
@@ -28,10 +28,8 @@ async function loadLabels(customLabelsUrl?: string): Promise<void> {
     console.warn('[Worker] labels load failed:', e);
   }
 }
-// let labels: string[] = ['吃', '我', '你'];
-// '有沒有', '完成', '還沒'
 
-// --- 新增：滑動視窗緩衝區 ---
+// --- 滑動視窗緩衝區 ---
 let framesBuffer: number[][] = [];
 const SEQ_LENGTH = 30;   // 收集 30 幀
 const FEATURE_DIM = 126; // 雙手特徵 (21點 * 3座標 * 2手)
@@ -42,18 +40,48 @@ const AIWorker = {
       console.log("[Worker] 開始載入模型:", modelUrl);
       if (session) return true;
 
+      // 1. 下載主模型結構檔 model.onnx
       const response = await fetch(modelUrl);
-      if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+      if (!response.ok) throw new Error(`Fetch model failed: ${response.status}`);
       const buffer = await response.arrayBuffer();
+
+      // 2. 嘗試下載外部權重檔 model.onnx.data
+      const dataUrl = modelUrl.replace(/\.onnx$/, '.onnx.data');
+      let externalData: any = undefined;
+      try {
+        const dataRes = await fetch(dataUrl);
+        if (dataRes.ok) {
+          const dataBuf = await dataRes.arrayBuffer();
+          externalData = [
+            {
+              path: 'model.onnx.data',
+              data: new Uint8Array(dataBuf)
+            }
+          ];
+          console.log('[Worker] model.onnx.data 權重檔載入成功');
+        }
+      } catch (err) {
+        console.warn('[Worker] fetch model.onnx.data skipped:', err);
+      }
 
       ort.env.wasm.numThreads = 1;
 
-      session = await ort.InferenceSession.create(buffer, {
+      const sessionOptions: ort.InferenceSession.SessionOptions = {
         executionProviders: ['wasm'],
-        graphOptimizationLevel: 'all',
-      });
+        graphOptimizationLevel: 'all'
+      };
+      if (externalData) {
+        (sessionOptions as any).externalData = externalData;
+      }
 
-      console.log('[Worker] 模型載入成功');
+      try {
+        session = await ort.InferenceSession.create(buffer, sessionOptions);
+      } catch (bufErr) {
+        console.warn('[Worker] buffer 載入失敗，嘗試由 URL 載入:', bufErr);
+        session = await ort.InferenceSession.create(modelUrl, sessionOptions);
+      }
+
+      console.log('[Worker] 模型載入成功, inputNames:', session.inputNames, 'outputNames:', session.outputNames);
       const targetLabelsUrl = labelsUrl || (modelUrl.includes('/') ? modelUrl.substring(0, modelUrl.lastIndexOf('/') + 1) + 'labels.json' : LABELS_URL);
       await loadLabels(targetLabelsUrl);
       return true;
@@ -63,7 +91,7 @@ const AIWorker = {
     }
   },
 
-  // 參數改為 singleFrameLandmarks，代表「當下這一幀的 126 個座標點」
+  // 參數為 singleFrameLandmarks，代表「當下這一幀的 126 個座標點」
   async predict(singleFrameLandmarks: number[]) {
     if (!session) return '模型未載入'
 
@@ -93,7 +121,7 @@ const AIWorker = {
       // 5. 將收集滿的 30 幀二維陣列攤平成 Float32Array 供 ONNX 使用
       const flatData = new Float32Array(framesBuffer.flat());
 
-      // 6. 關鍵修復：明確告訴 ONNX 這是一個 3D Tensor [1, 30, 126]
+      // 6. 構造 3D Tensor [1, 30, 126]
       const inputTensor = new ort.Tensor('float32', flatData, [1, SEQ_LENGTH, FEATURE_DIM]);
 
       const feeds: Record<string, ort.Tensor> = {}
@@ -104,15 +132,14 @@ const AIWorker = {
       if (!outputTensor) return '模型輸出異常'
 
       const output = outputTensor.data as Float32Array
-      
       if (output.length === 0) return '模型輸出為空'
-      const safeLabels =
-  labels.length === output.length
-    ? labels
-    : Array.from({ length: output.length }, (_, i) => `Class ${i}`);
-      // 取得模型輸出的原始分數 (Logits)
 
-      // 1. Softmax 轉換：將原始分數轉換為 0~1 (0%~100%) 的真實機率
+      const safeLabels =
+        labels.length === output.length
+          ? labels
+          : Array.from({ length: output.length }, (_, i) => `Class ${i}`);
+
+      // Softmax 轉換
       const maxLogit = Math.max(...output);
       const exps = output.map(x => Math.exp(x - maxLogit));
       const sumExps = exps.reduce((a, b) => a + b, 0);
@@ -123,11 +150,10 @@ const AIWorker = {
         score: probabilities[i] ?? 0
       })).sort((a, b) => b.score - a.score);
 
-      // 2. 找出機率最高的那一個
+      // 找出最高機率
       let maxIndex = 0;
       let maxScore: number = -Infinity;
       for (let i = 0; i < probabilities.length; i++) {
-        // 透過 nullish coalescing 確保 score 為數字，避免 undefined 比較
         const score = probabilities[i] ?? -Infinity;
         if (score > maxScore) {
           maxScore = score;
@@ -135,23 +161,18 @@ const AIWorker = {
         }
       }
 
-      // 3. 設定信心度門檻 (例如 0.7 代表 70% 的把握)
-      // 如果最高機率小於 0.7，代表模型在瞎猜，我們就不輸出結果
+      // 信心度門檻
       if (maxScore < 0.5) {
         return '辨識中...';
       }
 
       const prediction = safeLabels[maxIndex] ?? '未知類別';
 
-      // 測試階段可以把機率印出來看，方便你抓感覺
-      console.log(`預測結果: ${prediction}, 信心度: ${(maxScore * 100).toFixed(1)}%`);
-
       return {
         prediction,
         confidence: maxScore,
-        allProbabilities: probMap // 包含排序後的清單
+        allProbabilities: probMap
       };
-      
     } catch (e) {
       console.error('[Worker] 推論異常:', e);
       return `辨識錯誤，${e instanceof Error ? e.message : String(e)}`;

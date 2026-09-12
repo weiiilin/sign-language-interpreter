@@ -10,10 +10,21 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import BottomNav from '@/components/BottomNav.vue'
 import SettingModal from '@/components/SettingModal.vue'
 import DetailSheet from '@/components/DetailSheet.vue'
 import { useSignStore } from '@/stores/signStore'
 
 const signStore = useSignStore()
+
+onMounted(() => {
+  if (import.meta.client) {
+    const savedSize = localStorage.getItem('fontSize')
+    if (savedSize) {
+      document.documentElement.style.fontSize = `${savedSize}px`
+      document.documentElement.style.setProperty('--app-font-size', `${savedSize}px`)
+    }
+  }
+})
 </script>

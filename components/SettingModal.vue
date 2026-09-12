@@ -71,6 +71,7 @@ onMounted(() => {
   const savedSize = localStorage.getItem('fontSize')
   if (savedSize) {
     fontSize.value = Number(savedSize)
+    document.documentElement.style.fontSize = `${fontSize.value}px`
     document.documentElement.style.setProperty(
       '--app-font-size',
       `${fontSize.value}px`
@@ -86,6 +87,7 @@ onMounted(() => {
 })
 
 watch(fontSize, (newSize) => {
+  document.documentElement.style.fontSize = `${newSize}px`
   document.documentElement.style.setProperty(
     '--app-font-size',
     `${newSize}px`

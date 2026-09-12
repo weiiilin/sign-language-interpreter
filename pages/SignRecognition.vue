@@ -190,24 +190,36 @@ const initSystem = async () => {
         systemStatus.value = '載入手部姿態偵測模型...'
         const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision')
         const vision = await FilesetResolver.forVisionTasks(
-            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.34/wasm'
         )
-        handLandmarker = await HandLandmarker.createFromOptions(vision, {
-            baseOptions: {
-                modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-                delegate: 'GPU'
-            },
-            runningMode: 'VIDEO',
-            numHands: 2
-        })
+        try {
+            handLandmarker = await HandLandmarker.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+                    delegate: 'GPU'
+                },
+                runningMode: 'VIDEO',
+                numHands: 2
+            })
+        } catch (gpuErr) {
+            console.warn('GPU delegate 失敗，切換為 CPU:', gpuErr)
+            handLandmarker = await HandLandmarker.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+                    delegate: 'CPU'
+                },
+                runningMode: 'VIDEO',
+                numHands: 2
+            })
+        }
 
         isSystemReady.value = true
         systemStatus.value = '系統就緒，請開始比手語！'
         return true
     } catch (error: any) {
-        console.error(error)
-        systemStatus.value = '初始化失敗'
-        signStore.setError?.(error.message)
+        console.error('initSystem error:', error)
+        systemStatus.value = `初始化失敗: ${error?.message || error}`
+        signStore.setError?.(error?.message || String(error))
         return false
     }
 }
