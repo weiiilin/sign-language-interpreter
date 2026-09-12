@@ -16,6 +16,7 @@ export const useSignStore = defineStore('sign', {
 
     // 詳情彈窗專用的資料緩衝區
     detailData: {
+      id: null as number | string | null,
       dictionaryKey: '' as string,
       word: '尚未辨識' as string,
       breakdown: '依辨識結果顯示拆解' as string,
@@ -55,14 +56,16 @@ export const useSignStore = defineStore('sign', {
         this.dictionaryPageSize = savedSize
       }
     },
-    openDetail(this: any, payload?: { word: string; dictionaryKey?: string; breakdown?: string; detail?: string }) {
+    openDetail(this: any, payload?: { id?: number | string; word: string; dictionaryKey?: string; breakdown?: string; detail?: string }) {
       if (payload) {
+        this.detailData.id = payload.id || null
         this.detailData.dictionaryKey = payload.dictionaryKey || payload.word
         this.detailData.word = payload.word
         if (payload.breakdown) this.detailData.breakdown = payload.breakdown
         if (payload.detail) this.detailData.detail = payload.detail
       } else {
         // 如果沒傳參數，預設抓取目前最新的 AI 辨識結果
+        this.detailData.id = null
         this.detailData.dictionaryKey = this.currentSign || '尚未辨識'
         this.detailData.word = this.currentSign || '尚未辨識'
         this.detailData.breakdown = '依辨識結果顯示拆解'
